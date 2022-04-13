@@ -31,6 +31,8 @@ public:
 	virtual void getEq(string, int){return;}
 	virtual void print(){return;}
 	virtual string getName(){return 0;}
+	virtual void setRow(int){return;}
+	virtual int getRow(){return 0;}
 	
 };
 
@@ -57,6 +59,7 @@ public:
 	string getName(){return name;}
 	void print(){cout << name;}
 	int getType(){return type;}
+
 };
 
 Var::Var(string nName)
@@ -112,7 +115,7 @@ enum OPERATOR
 	GEQ, GT,
 	OR, AND,
 	BITOR,
-	COLON, GOTO
+	COLON, GOTO, IF, ELSE, ENDIF
 };
 
 int PRIORITY[] = {
@@ -124,7 +127,7 @@ int PRIORITY[] = {
 	7, 7,
 	1, 2,
 	3,
-	0, 0
+	0, 0, 0, 0, 0
 	
 };
 
@@ -142,7 +145,7 @@ string OPERTEXT [] =
 "&" ,
 "<" , ">" ,
 "+" , "-" ,
-"*" , "/" , "%", ":", "goto"
+"*" , "/" , "%", ":", "goto", "if", "else", "endif"
 };
 class Oper: public Lexem
 {
@@ -196,6 +199,9 @@ void Oper::print()
 		case BITOR: cout << "|"; break;
 		case COLON: cout << ":"; break;
 		case GOTO: cout << "goto"; break;
+		case IF: cout << "if"; break;
+		case ELSE: cout << "else"; break;
+		case ENDIF: cout << "endif"; break;
 		   
 
         }
@@ -267,6 +273,12 @@ Oper::Oper(string oper)
 		opertype = COLON;
 	if (oper == "goto")
 		opertype = GOTO;
+	if (oper == "if")
+		opertype = IF;
+	if (oper == "else")
+		opertype = ELSE;
+	if (oper == "endif")
+		opertype = ENDIF;
 }
 
 int Oper::getPriority()
@@ -361,10 +373,36 @@ void initLabels(vector <Lexem *> infix , int row)
 
 				delete infix[i - 1];
 				delete infix[i];
-				infix[i - 1] = nullptr ;
-				infix[i] = nullptr ;
+				infix[i - 1] = nullptr;
+				infix[i] = nullptr;
 				i++;
 			}
+		}
+	}
+}
+
+void initJumps(vector < vector<Lexem* >> infixLines)
+{
+	stack<Lexem *> stackIfElse;
+	for (int row = 0; row < (int)infixLines.size(); row++)
+	{
+		for (int i = 0; i < infixLines[row].size(); i++)
+		{
+			if((infixLines[row][i])->getType() == IF)
+				stackIfElse.push(infixLines[row][i]);
+			if((infixLines[row][i])->getType() == ELSE)
+			{
+				stackIfElse.top()->setRow(row + 1);
+				stackIfElse.pop();
+				stackIfElse.push(infixLines[row][i]);
+			}
+			if((infixLines[row][i])->getType() == ENDIF)
+			{
+				stackIfElse.top()->setRow(row + 1);
+				stackIfElse.pop();
+	
+			}
+			       
 		}
 	}
 }
@@ -456,6 +494,26 @@ int evaluatePostfix(vector<Lexem *> poliz, int row)
 			Oper *oper = static_cast <Oper* >(poliz[i]);
 			if (oper->getType() == GOTO)
 				return oper->getRow();
+			if (oper->getType() == IF)
+			{
+//				cout << "YES" << oper->getRow() << endl;
+			//	return oper->getRow();
+//				cout << "ANS:" << computationStack.top()->getValue() << endl;	
+				if(computationStack.top()->getValue() == 0)
+				{
+					computationStack.pop();
+					return oper->getRow();
+				}
+
+//					cout << "YES" << endl;
+				return row + 1;
+				
+				
+			}
+			if (oper->getType() == ELSE)
+				return oper->getRow();
+			if (oper->getType() == ENDIF)
+				return row + 1;
                         right = (computationStack.top())->getValue();
                        	computationStack.pop();
 			if (poliz[i]->getType() != ASSIGN)
@@ -466,7 +524,7 @@ int evaluatePostfix(vector<Lexem *> poliz, int row)
 	               	        Number *val = new Number(value);
                        		computationStack.push(val);
 
-			}	
+      			}	
 
 
 			if (poliz[i]->getType() == ASSIGN)
@@ -474,12 +532,14 @@ int evaluatePostfix(vector<Lexem *> poliz, int row)
 				name = (computationStack.top())->getName();
 				poliz[i]->getEq(name, right);
 				Number *val = new Number(value);
-             		        computationStack.push(val);
+//				computationStack.push(val);
+				return row + 1;
 			}
 
         	}
 	}
 	cout << computationStack.top()->getValue() << endl;
+	computationStack.pop();
 	return row + 1;
 }
 
@@ -494,6 +554,7 @@ int main()
 		infixLines.push_back (parseLexem(codeline));
 	for (row = 0; row < infixLines.size(); row++)
 		initLabels(infixLines[row], row);
+	initJumps(infixLines);
 
 	for (row = 0; row < infixLines.size(); row++)
 		postfixLines.push_back (buildPostfix(infixLines[row]));
@@ -504,6 +565,9 @@ int main()
 		{
 			cout << "[";
 			postfixLines[i][j]->print();
+			if (postfixLines[i][j]->getType() == ENDIF)
+				cout << "!" << endl;
+//				cout << postfixLines[i][j]->getRow() << endl;
 			cout << "]";
 		}
 
