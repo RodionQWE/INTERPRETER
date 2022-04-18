@@ -115,7 +115,7 @@ enum OPERATOR
 	GEQ, GT,
 	OR, AND,
 	BITOR,
-	COLON, GOTO, IF, ELSE, ENDIF
+	COLON, GOTO, IF, ELSE, ENDIF, WHILE, ENDWHILE
 };
 
 int PRIORITY[] = {
@@ -127,7 +127,7 @@ int PRIORITY[] = {
 	7, 7,
 	1, 2,
 	3,
-	0, 0, 0, 0, 0
+	0, 0, 0, 0, 0, 0, 0
 	
 };
 
@@ -145,7 +145,7 @@ string OPERTEXT [] =
 "&" ,
 "<" , ">" ,
 "+" , "-" ,
-"*" , "/" , "%", ":", "goto", "if", "else", "endif"
+"*" , "/" , "%", ":", "goto", "if", "else", "endif", "while", "endwhile"
 };
 class Oper: public Lexem
 {
@@ -202,6 +202,8 @@ void Oper::print()
 		case IF: cout << "if"; break;
 		case ELSE: cout << "else"; break;
 		case ENDIF: cout << "endif"; break;
+		case WHILE: cout << "while"; break;
+		case ENDWHILE: cout << "endwhile"; break;
 		   
 
         }
@@ -279,6 +281,10 @@ Oper::Oper(string oper)
 		opertype = ELSE;
 	if (oper == "endif")
 		opertype = ENDIF;
+	if (oper == "while")
+		opertype = WHILE;
+	if (oper == "endwhile")
+		opertype = ENDWHILE;
 }
 
 int Oper::getPriority()
@@ -384,6 +390,7 @@ void initLabels(vector <Lexem *> infix , int row)
 void initJumps(vector < vector<Lexem* >> infixLines)
 {
 	stack<Lexem *> stackIfElse;
+	stack<Lexem *> stackWhile;
 	for (int row = 0; row < (int)infixLines.size(); row++)
 	{
 		for (int i = 0; i < infixLines[row].size(); i++)
@@ -401,6 +408,19 @@ void initJumps(vector < vector<Lexem* >> infixLines)
 				stackIfElse.top()->setRow(row + 1);
 				stackIfElse.pop();
 	
+			}
+
+			if((infixLines[row][i])->getType() == WHILE)
+			{
+				(infixLines[row][i])->setRow(row);
+				stackWhile.push(infixLines[row][i]);
+			}
+
+			if((infixLines[row][i])->getType() == ENDWHILE)
+			{
+				infixLines[row][i]->setRow(stackWhile.top()->getRow());
+				stackWhile.top()->setRow(row + 1);
+				stackWhile.pop();
 			}
 			       
 		}
@@ -494,7 +514,7 @@ int evaluatePostfix(vector<Lexem *> poliz, int row)
 			Oper *oper = static_cast <Oper* >(poliz[i]);
 			if (oper->getType() == GOTO)
 				return oper->getRow();
-			if (oper->getType() == IF)
+			if (oper->getType() == IF || oper->getType() == WHILE)
 			{
 //				cout << "YES" << oper->getRow() << endl;
 			//	return oper->getRow();
@@ -510,10 +530,11 @@ int evaluatePostfix(vector<Lexem *> poliz, int row)
 				
 				
 			}
-			if (oper->getType() == ELSE)
+			if (oper->getType() == ELSE || oper->getType() == ENDWHILE)
 				return oper->getRow();
 			if (oper->getType() == ENDIF)
 				return row + 1;
+
                         right = (computationStack.top())->getValue();
                        	computationStack.pop();
 			if (poliz[i]->getType() != ASSIGN)
