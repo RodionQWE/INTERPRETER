@@ -1,1 +1,7 @@
-
+a array 10
+i := 0
+while i < 7
+	a[i] := i
+	a[i] + 0
+	i := i + 1
+endwhile
