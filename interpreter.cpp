@@ -6,7 +6,6 @@
 
 using namespace std;
 
-
 map<string, int> table;
 map<string, int> labels;
 map<string, vector<int> > ArrayTable;
@@ -23,17 +22,10 @@ public:
 	LEX_TYPE type;
 	Lexem(){}
 	int getLexType();
-	virtual int getType(){return 0;}
-	virtual int getPriority(){return 0;}
-//	virtual int getValue(int, int){return 0;}
-	virtual int getValue(){return 0;}
-	virtual int getEv(int, int){return 0;}
-	virtual void getEq(string, int){return;}
-	virtual void print(){return;}
-	virtual string getName(){return 0;}
+	virtual int getValue() = 0;
+	virtual void print() = 0;
 	virtual void setRow(int){return;}
 	virtual int getRow(){return 0;}
-	virtual void getArray(string, int, int){return ;}
 	
 };
 
@@ -41,14 +33,6 @@ int Lexem::getLexType()
 {
 	return type;
 }
- 
-/*class NumVar: public Lexem
-{
-public:
-	int getValue();
-};
-
-*/
 class Var: public Lexem
 {
 	string name;
@@ -72,14 +56,6 @@ int Var::getValue()
 {
 	return table[name];
 }
-
-//Variable::Variable(char nName)
-//{
-//	name = nName;
-//	type = VAR;	
-//}
-
-	
 class Number: public Lexem
 {
 	int value ;
@@ -159,7 +135,8 @@ public:
 	Oper(string oper);
 	int getPriority();
 	int getType();
-	int getEv (int left, int right);
+	int getValue(){return 0;}
+	int getValue (int left, int right);
 	void getEq (string name, int val);
 	void getArray (string name, int index, int val);
 //	void getEq(string, int);
@@ -167,8 +144,6 @@ public:
 	void print();
 	void setRow(int number);
 	int getRow();
-
-
 };
 
 void Oper::setRow(int number)
@@ -211,13 +186,10 @@ void Oper::print()
 		case ENDWHILE: cout << "endwhile"; break;
 		case DEREF: cout << "deref"; break;
 		case ARR: cout << "array"; break;
-		   
-
         }
 }
 
-
-int Oper::getEv(int left = 1, int right = 1)
+int Oper::getValue(int left = 1, int right = 1)
 {
 	switch (this->getType())
 	{
@@ -324,6 +296,7 @@ public:
 	string getName(){return name;}
 	int getIndex(){return index;}
 	void mall();
+	void print(){cout << name;}
 };
 
 Array::Array(string nName, int nIndex)
@@ -344,19 +317,14 @@ int Array::getValue()
 {
 	return ArrayTable[name][index];
 }
-//void Array::setValue(int num)
-//{
-//	ArrayTable[name][index] = num;
-//}
 
 vector <Lexem* > parseLexem(string codeline)
 {
 	vector <Lexem* > infix;
 	int number = 0;
 	int j, flag_n = 0, flag_op = 0;
-	int nOp = 0;
 	string notNum = "";
-	for (int i = 0; i < codeline.size(); i++)
+	for (int i = 0; i < (int)codeline.size(); i++)
 	{
 		for (j = i; codeline[j] >= '0' && codeline[j] <= '9'; j++)
 		{
@@ -393,7 +361,7 @@ vector <Lexem* > parseLexem(string codeline)
 		if (codeline[i] != ' ' && codeline[i] != '\n')
 		{	
 //		cout << "YES" << endl;
-			while (((codeline[i] >= 'a' && codeline[i] <= 'z') || (codeline[i] >= 'A' && codeline[i] <= 'Z')) && i < codeline.size())
+			while ((((int)codeline[i] >= 'a' && codeline[i] <= 'z') || (codeline[i] >= 'A' && codeline[i] <= 'Z')) && i < (int)codeline.size())
 			{
 				notNum += codeline[i];
 				i++;
@@ -408,8 +376,6 @@ vector <Lexem* > parseLexem(string codeline)
 			flag_op = 0;
 		}
 
-	
-
 	}
 	return infix;
 
@@ -418,9 +384,6 @@ vector <Lexem* > parseLexem(string codeline)
 
 void initLabels(vector <Lexem *> infix , int row)
 {
-	int i = 1;
-
-
 	for (int i = 1; i < (int)infix.size(); i++)
 	{
 		if (infix[i - 1]->getLexType() == VAR && infix[i]->getLexType() == OPER)
@@ -450,54 +413,49 @@ void initJumps(vector < vector<Lexem* >> infixLines)
 	stack<Lexem *> stackWhile;
 	for (int row = 0; row < (int)infixLines.size(); row++)
 	{
-		for (int i = 0; i < infixLines[row].size(); i++)
+		for (int i = 0; i < (int)infixLines[row].size(); i++)
 		{
-			if((infixLines[row][i])->getType() == IF)
-				stackIfElse.push(infixLines[row][i]);
-			if((infixLines[row][i])->getType() == ELSE)
+			if (infixLines[row][i]->getLexType() == OPER)
 			{
-				stackIfElse.top()->setRow(row + 1);
-				stackIfElse.pop();
-				stackIfElse.push(infixLines[row][i]);
-			}
-			if((infixLines[row][i])->getType() == ENDIF)
-			{
-				stackIfElse.top()->setRow(row + 1);
-				stackIfElse.pop();
+				if(((Oper *)(infixLines[row][i]))->getType() == IF)
+					stackIfElse.push(infixLines[row][i]);
+				if(((Oper *)(infixLines[row][i]))->getType() == ELSE)
+				{
+					stackIfElse.top()->setRow(row + 1);
+					stackIfElse.pop();
+					stackIfElse.push(infixLines[row][i]);
+				}
+				if(((Oper *)(infixLines[row][i]))->getType() == ENDIF)
+				{
+					stackIfElse.top()->setRow(row + 1);
+					stackIfElse.pop();
+		
+				}
 	
-			}
-
-			if((infixLines[row][i])->getType() == WHILE)
-			{
-				(infixLines[row][i])->setRow(row);
-				stackWhile.push(infixLines[row][i]);
-			}
-
-			if((infixLines[row][i])->getType() == ENDWHILE)
-			{
-				infixLines[row][i]->setRow(stackWhile.top()->getRow());
-				stackWhile.top()->setRow(row + 1);
-				stackWhile.pop();
-			}
+				if(((Oper *)(infixLines[row][i]))->getType() == WHILE)
+				{
+					(infixLines[row][i])->setRow(row);
+					stackWhile.push(infixLines[row][i]);
+				}
+	
+				if(((Oper *)(infixLines[row][i]))->getType() == ENDWHILE)
+				{
+					infixLines[row][i]->setRow(stackWhile.top()->getRow());
+					stackWhile.top()->setRow(row + 1);
+					stackWhile.pop();
+				}
 			       
+			}
 		}
 	}
 }
 
-/*void joinGotoAndLabel (Var * lexemvar, <Oper *> &stack)
-{
-	if (stack.top()->operType() == GOTO )
-	{
-		lexemgoto->setRow (lexemvar->getName());
-	}
-}
-*/
 vector<Lexem *> buildPostfix(vector<Lexem *> infix)
 {
         int i, j;
         stack<Oper *> opstack;
         vector<Lexem *> postfix;
-        for (i = 0; i < infix.size(); i++)
+        for (i = 0; i < (int)infix.size(); i++)
 	{
 		if (infix[i] == nullptr)
 			continue;
@@ -565,7 +523,7 @@ int evaluatePostfix(vector<Lexem *> poliz, int row)
         int value, left, right;
 	string name;
         stack<Lexem*> computationStack;
-        for (int i = 0; i < poliz.size(); i++)
+        for (int i = 0; i < (int)poliz.size(); i++)
 	{
                 if (poliz[i]->getLexType() == NUMBER || poliz[i]->getLexType() == VAR)
 		{
@@ -578,7 +536,7 @@ int evaluatePostfix(vector<Lexem *> poliz, int row)
 			{
 				right = (computationStack.top())->getValue();
 	                        computationStack.pop();
-				name = (computationStack.top())->getName();
+				name = ((Var *)computationStack.top())->getName();
 				computationStack.pop();
 
 				Array *arr = (new Array(name, right));
@@ -599,9 +557,6 @@ int evaluatePostfix(vector<Lexem *> poliz, int row)
 				return oper->getRow();
 			if (oper->getType() == IF || oper->getType() == WHILE)
 			{
-//				cout << "YES" << oper->getRow() << endl;
-			//	return oper->getRow();
-//				cout << "ANS:" << computationStack.top()->getValue() << endl;	
 				if(computationStack.top()->getValue() == 0)
 				{
 					computationStack.pop();
@@ -610,7 +565,6 @@ int evaluatePostfix(vector<Lexem *> poliz, int row)
 
 //					cout << "YES" << endl;
 				return row + 1;
-				
 				
 			}
 			if (oper->getType() == ELSE || oper->getType() == ENDWHILE)
@@ -621,36 +575,36 @@ int evaluatePostfix(vector<Lexem *> poliz, int row)
                         right = (computationStack.top())->getValue();
                        	computationStack.pop();
 
-			if (poliz[i]->getType() != ASSIGN)
+			if (oper->getType() != ASSIGN)
 			{
         	       	        left = (computationStack.top())->getValue();
 	                        computationStack.pop();
-        	                value = poliz[i]->getEv(left, right);
+        	                value = ((Oper *)poliz[i])->getValue(left, right);
 	               	        Number *val = new Number(value);
                        		computationStack.push(val);
 
       			}	
 
 
-			if (poliz[i]->getType() == ASSIGN)
+			if (oper->getType() == ASSIGN)
 			{
 
 //			cout << "1" << endl;
-				name = (computationStack.top())->getName();
+				name = ((Var *)computationStack.top())->getName();
 
 				if (computationStack.top()->getLexType() == ARRAY)
 				{
 
 					int index = ((Array*)computationStack.top())->getIndex();
 				//	cout << name << " " << index << " " << right << endl;
-					poliz[i]->getArray(name, index, right);
+					((Oper *)poliz[i])->getArray(name, index, right);
 					
 			//cout << "1" << endl;
 
 					return row + 1;
 				}
 				
-				poliz[i]->getEq(name, right);
+				oper->getEq(name, right);
 				Number *val = new Number(value);
 //				computationStack.push(val);
 				return row + 1;
@@ -668,9 +622,7 @@ int main()
 {
 	string codeline;
 	vector<vector <Lexem *> > postfixLines, infixLines;
-	int ans;
 	int row;
-
 	while (getline(cin, codeline))
 		infixLines.push_back (parseLexem(codeline));
 /*	for (int i = 0; i < infixLines.size(); i++)
@@ -690,20 +642,18 @@ int main()
 	}
 */
 //	(new Oper ("deref"))->print();
-	for (row = 0; row < infixLines.size(); row++)
+	for (row = 0; row < (int)infixLines.size(); row++)
 		initLabels(infixLines[row], row);
 	initJumps(infixLines);
-	for (row = 0; row < infixLines.size(); row++)
+	for (row = 0; row < (int)infixLines.size(); row++)
 		postfixLines.push_back (buildPostfix(infixLines[row]));
 	row = 0;
-	for (int i = 0; i < postfixLines.size(); i++)
+	for (int i = 0; i < (int)postfixLines.size(); i++)
 	{
-		for (int j = 0; j < postfixLines[i].size(); j++)
+		for (int j = 0; j < (int)postfixLines[i].size(); j++)
 		{
 			cout << "[";
 			postfixLines[i][j]->print();
-			if (postfixLines[i][j]->getType() == ENDIF)
-				cout << "!" << endl;
 //				cout << postfixLines[i][j]->getRow() << endl;
 			cout << "]";
 		}
@@ -711,9 +661,7 @@ int main()
 		cout << endl;
 
 	}
-//	ArrayTable["x"][1] = 42;
-//	cout << ArrayTable["x"][1] << endl;
-	while (row < postfixLines.size())
+	while (row < (int)postfixLines.size())
 	{
 		row = evaluatePostfix(postfixLines[row], row);
 	}
@@ -739,3 +687,4 @@ int main()
 
 	return 0;
 }
+
