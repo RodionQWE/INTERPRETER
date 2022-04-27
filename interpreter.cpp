@@ -117,7 +117,7 @@ enum OPERATOR
 	OR, AND,
 	BITOR,
 	COLON, GOTO, IF, ELSE, ENDIF, WHILE, ENDWHILE,
-	LQBRACKET, RQBRACKET, DEREF
+	LQBRACKET, RQBRACKET, DEREF, ARR
 };
 
 int PRIORITY[] = {
@@ -130,7 +130,7 @@ int PRIORITY[] = {
 	1, 2,
 	3,
 	0, 0, 0, 0, 0, 0, 0,
-	-1, -1, -1
+	-1, -1, -1, 9
 	
 };
 
@@ -210,6 +210,7 @@ void Oper::print()
 		case WHILE: cout << "while"; break;
 		case ENDWHILE: cout << "endwhile"; break;
 		case DEREF: cout << "deref"; break;
+		case ARR: cout << "array"; break;
 		   
 
         }
@@ -245,7 +246,6 @@ void Oper::getEq(string name, int val)
 
 void Oper::getArray(string name, int index, int val)
 {
-	ArrayTable[name] = vector<int>(index + 1);
 	ArrayTable[name][index] = val;
 }
 
@@ -303,7 +303,8 @@ Oper::Oper(string oper)
 		opertype =  RQBRACKET;
 	if (oper == "deref")
 		opertype = DEREF;
-
+	if (oper == "array")
+		opertype = ARR;
 }
 
 int Oper::getPriority()
@@ -322,6 +323,7 @@ public:
 	int setValue(int num);
 	string getName(){return name;}
 	int getIndex(){return index;}
+	void mall();
 };
 
 Array::Array(string nName, int nIndex)
@@ -331,6 +333,13 @@ Array::Array(string nName, int nIndex)
 	type = ARRAY;
 
 }
+void Array::mall()
+
+{
+	ArrayTable[name] = vector<int>(index + 1);
+	ArrayTable[name][index] = 0;
+}
+
 int Array::getValue()
 {
 	return ArrayTable[name][index];
@@ -565,15 +574,25 @@ int evaluatePostfix(vector<Lexem *> poliz, int row)
                 if (poliz[i]->getLexType() == OPER)
 		{
 			Oper *oper = static_cast <Oper* >(poliz[i]);
-			if (oper->getType() == DEREF)
+			if (oper->getType() == ARR || oper->getType() == DEREF) 
 			{
 				right = (computationStack.top())->getValue();
 	                        computationStack.pop();
 				name = (computationStack.top())->getName();
 				computationStack.pop();
-                       		computationStack.push(new Array(name, right));
-//				cout << "1" << endl;
+
+				Array *arr = (new Array(name, right));
+
+				if (oper->getType() == ARR)
+				{
+					arr->mall();
+                      		computationStack.push(arr);
+			           //	continue;
+				   	return row + 1;
+				}
+                      		computationStack.push(arr);
 				continue;
+				
 
 			}
 			if (oper->getType() == GOTO)
@@ -598,8 +617,8 @@ int evaluatePostfix(vector<Lexem *> poliz, int row)
 				return oper->getRow();
 			if (oper->getType() == ENDIF)
 				return row + 1;
+
                         right = (computationStack.top())->getValue();
-			
                        	computationStack.pop();
 
 			if (poliz[i]->getType() != ASSIGN)
@@ -640,6 +659,7 @@ int evaluatePostfix(vector<Lexem *> poliz, int row)
         	}
 	}
 	cout << computationStack.top()->getValue() << endl;
+	
 	computationStack.pop();
 	return row + 1;
 }
