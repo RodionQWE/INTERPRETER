@@ -328,6 +328,7 @@ vector <Lexem *> getNum(int *i, string codeline, int *flag_n, int *j, vector <Le
 		Number *num = new Number(number);
 		infix.push_back(num);
 		*i = (*j) - 1;
+//	cout << number << endl;	
 		number = 0;
 		*flag_n = 0;
 	}
@@ -335,7 +336,7 @@ vector <Lexem *> getNum(int *i, string codeline, int *flag_n, int *j, vector <Le
 	
 }
 
-vector <Lexem *> getOper(vector <Lexem *> infix, int *i, string codeline)
+vector <Lexem *> getOper(vector <Lexem *> infix, int *i, string codeline, int *flag_op)
 {
 	int n = sizeof(OPERTEXT) / sizeof(string);
 	for ( int op = 0; op < n ; op ++)
@@ -344,17 +345,11 @@ vector <Lexem *> getOper(vector <Lexem *> infix, int *i, string codeline)
 			if(OPERTEXT [op] == subcodeline ) 
 			{	
 				infix.push_back(new Oper (OPERTEXT[op]));
-				(*i) += OPERTEXT[op].size();
-//				flag_op = 1;
+				(*i) += OPERTEXT[op].size() - 1;
+				*flag_op = 1;
  				break;
 			}
 	}
-/*if (flag_op == 1)
-	{
-		flag_op = 0;
-		continue;	
-	}
-*/
 	return infix;
 		
 }
@@ -392,7 +387,12 @@ vector <Lexem* > parseLexem(string codeline)
 	for (int i = 0; i < (int)codeline.size(); i++)
 	{
 		infix = getNum(&i, codeline, &flag_n, &j, infix);
-		infix = getOper(infix, &i, codeline);
+		infix = getOper(infix, &i, codeline, &flag_op);
+		if (flag_op == 1)
+		{
+			flag_op = 0;
+			continue;	
+		}
 		infix = getVar(infix, &i, codeline);
 	
 	}
@@ -479,10 +479,9 @@ stack <Oper *> pushVar(stack <Oper *> opstack, Var* lexemvar)
 
 }
 
-stack <Oper *> pushOper()
-{
-			Oper *oper = static_cast <Oper* >(infix[i]);
-                        if (oper->getType() == LBRACKET || oper->getType() == LQBRACKET)
+/*stack <Oper *> pushOper(stack<Oper *> opstack, vector<Lexem *> postfix, vector<Lexem *> infix, int i, int *nPop)
+{		Oper *oper = static_cast <Oper* >(infix[i]);
+ 		if (oper->getType() == LBRACKET || oper->getType() == LQBRACKET)
 			{
                                 opstack.push((oper));
                         } else
@@ -500,22 +499,22 @@ stack <Oper *> pushOper()
 						postfix.push_back(new Oper("deref"));
 					}
                                 	opstack.pop();
-				} else {
+				} else 
+				{
         	                	while (!opstack.empty() && opstack.top()->getPriority() >= oper->getPriority())
 					{
-                        	                        postfix.push_back(opstack.top());
-                                	                opstack.pop();
+                        	        	postfix.push_back(opstack.top());
+                                	        opstack.pop();
 					}
-                                    			opstack.push((Oper *)infix[i]);
-	                                }
+                                    	opstack.push((Oper *)infix[i]);
+	                        }
                         }
-                }
-
 }
+*/
 
 vector<Lexem *> buildPostfix(vector<Lexem *> infix)
 {
-        int i, j;
+        int i, j, nPop;
         stack<Oper *> opstack;
         vector<Lexem *> postfix;
         for (i = 0; i < (int)infix.size(); i++)
@@ -535,17 +534,88 @@ vector<Lexem *> buildPostfix(vector<Lexem *> infix)
 		}
 
                 if (infix[i]->getLexType() == OPER)
-		{
-			opstack = pushOper(opstack);
+		{	
+			Oper *oper = static_cast <Oper* >(infix[i]);
+ 			if (oper->getType() == LBRACKET || oper->getType() == LQBRACKET)
+			{
+                                opstack.push((oper));
+                        } else
+			{
+//				cout <<"1" << endl;
+				if (oper->getType() == RBRACKET || oper->getType() == RQBRACKET)
+				{
+					for (j = opstack.size(); j > 0 && opstack.top()->getType() != LBRACKET && opstack.top()->getType() != LQBRACKET; j--)
+					{
+                                                postfix.push_back(opstack.top());
+                                                opstack.pop();
+					}
+					if (oper->getType() == RQBRACKET)
+					{	
+						postfix.push_back(new Oper("deref"));
+					}
+                                	opstack.pop();
+				} else 
+				{
+        	                	while (!opstack.empty() && opstack.top()->getPriority() >= oper->getPriority())
+					{
+                        	        	postfix.push_back(opstack.top());
+                                	        opstack.pop();
+					}
+                                    	opstack.push((Oper *)infix[i]);
+	                        }
+                        }
+
+	//		postfix = pushOper(opstack, postfix, infix, i, &nPop);
 		}
         }
-        for (i = opstack.size(); i > 0; i--)
+	for (i = opstack.size(); i > 0; i--)
 	{
-                postfix.push_back(opstack.top());
+               	postfix.push_back(opstack.top());
                 opstack.pop();
-        }
-        return postfix;
+       	}
+ 
+
+       return postfix;
 }
+
+stack<Lexem *> makeArr(stack<Lexem *> computationStack)
+{
+	string name;
+	int right;
+	right = (computationStack.top())->getValue();
+        computationStack.pop();
+	name = ((Var *)computationStack.top())->getName();
+	computationStack.pop();
+	Array *arr = (new Array(name, right));
+	computationStack.push(arr);
+	return computationStack;
+
+}
+
+stack<Lexem *> notA(stack<Lexem *> computationStack, vector<Lexem *> poliz, int i, int right)
+{
+	int left;
+	int value;
+	left = (computationStack.top())->getValue();
+	computationStack.pop();
+        value = ((Oper *)poliz[i])->getValue(left, right);
+	Number *val = new Number(value);
+        computationStack.push(val);
+	return computationStack;
+}
+int getG(stack<Lexem *> computationStack, vector <Lexem *> poliz, int i, int right, int row)
+{
+	string name = ((Var *)computationStack.top())->getName();
+	if (computationStack.top()->getLexType() == ARRAY)
+	{
+		int index = ((Array*)computationStack.top())->getIndex();
+		((Oper *)poliz[i])->getArray(name, index, right);
+		return row + 1;
+	}
+	((Oper*)poliz[i])->getEq(name, right);
+	return row + 1;
+}
+
 
 int evaluatePostfix(vector<Lexem *> poliz, int row)
 {
@@ -555,32 +625,19 @@ int evaluatePostfix(vector<Lexem *> poliz, int row)
         for (int i = 0; i < (int)poliz.size(); i++)
 	{
                 if (poliz[i]->getLexType() == NUMBER || poliz[i]->getLexType() == VAR)
-		{
                         computationStack.push(poliz[i]);
-                }
                 if (poliz[i]->getLexType() == OPER)
 		{
 			Oper *oper = static_cast <Oper* >(poliz[i]);
 			if (oper->getType() == ARR || oper->getType() == DEREF) 
 			{
-				right = (computationStack.top())->getValue();
-	                        computationStack.pop();
-				name = ((Var *)computationStack.top())->getName();
-				computationStack.pop();
-
-				Array *arr = (new Array(name, right));
-
+				computationStack = makeArr(computationStack);
 				if (oper->getType() == ARR)
 				{
-					arr->mall();
-                      		computationStack.push(arr);
-			           //	continue;
+					((Array *)computationStack.top())->mall();
 				   	return row + 1;
 				}
-                      		computationStack.push(arr);
 				continue;
-				
-
 			}
 			if (oper->getType() == GOTO)
 				return oper->getRow();
@@ -591,10 +648,7 @@ int evaluatePostfix(vector<Lexem *> poliz, int row)
 					computationStack.pop();
 					return oper->getRow();
 				}
-
-//					cout << "YES" << endl;
 				return row + 1;
-				
 			}
 			if (oper->getType() == ELSE || oper->getType() == ENDWHILE)
 				return oper->getRow();
@@ -605,39 +659,9 @@ int evaluatePostfix(vector<Lexem *> poliz, int row)
                        	computationStack.pop();
 
 			if (oper->getType() != ASSIGN)
-			{
-        	       	        left = (computationStack.top())->getValue();
-	                        computationStack.pop();
-        	                value = ((Oper *)poliz[i])->getValue(left, right);
-	               	        Number *val = new Number(value);
-                       		computationStack.push(val);
-
-      			}	
-
-
+				computationStack = notA(computationStack, poliz, i, right);
 			if (oper->getType() == ASSIGN)
-			{
-
-//			cout << "1" << endl;
-				name = ((Var *)computationStack.top())->getName();
-
-				if (computationStack.top()->getLexType() == ARRAY)
-				{
-
-					int index = ((Array*)computationStack.top())->getIndex();
-				//	cout << name << " " << index << " " << right << endl;
-					((Oper *)poliz[i])->getArray(name, index, right);
-					
-			//cout << "1" << endl;
-
-					return row + 1;
-				}
-				
-				oper->getEq(name, right);
-				Number *val = new Number(value);
-//				computationStack.push(val);
-				return row + 1;
-			}
+				return getG(computationStack, poliz, i, right, row);
 
         	}
 	}
@@ -716,5 +740,6 @@ int main()
 
 	return 0;
 }
+
 
 
