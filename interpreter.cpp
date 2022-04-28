@@ -24,9 +24,6 @@ public:
 	int getLexType();
 	virtual int getValue() = 0;
 	virtual void print() = 0;
-	virtual void setRow(int){return;}
-	virtual int getRow(){return 0;}
-	
 };
 
 int Lexem::getLexType()
@@ -318,64 +315,86 @@ int Array::getValue()
 	return ArrayTable[name][index];
 }
 
-vector <Lexem* > parseLexem(string codeline)
+vector <Lexem *> getNum(int *i, string codeline, int *flag_n, int *j, vector <Lexem *> infix)
 {
-	vector <Lexem* > infix;
-	int number = 0;
-	int j, flag_n = 0, flag_op = 0;
-	string notNum = "";
-	for (int i = 0; i < (int)codeline.size(); i++)
+	int number= 0;
+	for (*j = *i; codeline[*j] >= '0' && codeline[*j] <= '9'; (*j)++)
 	{
-		for (j = i; codeline[j] >= '0' && codeline[j] <= '9'; j++)
-		{
-			number = number * 10 + (codeline[j] - '0');
-			flag_n = 1;
-		}
-		if (flag_n == 1)
-		{
-			Number *num = new Number(number);
-			infix.push_back(num);
-			i = j - 1;
-			number = 0;
-			flag_n = 0;
-			continue;
-		}
+		number = number * 10 + (codeline[*j] - '0');
+		*flag_n = 1;
+	}
+	if (*flag_n == 1)
+	{
+		Number *num = new Number(number);
+		infix.push_back(num);
+		*i = (*j) - 1;
+		number = 0;
+		*flag_n = 0;
+	}
+	return infix;
 	
-		int n = sizeof(OPERTEXT) / sizeof(string);
-		for ( int op = 0; op < n ; op ++)
-		{
-			string subcodeline = codeline.substr(i, OPERTEXT[op].size());
+}
+
+vector <Lexem *> getOper(vector <Lexem *> infix, int *i, string codeline)
+{
+	int n = sizeof(OPERTEXT) / sizeof(string);
+	for ( int op = 0; op < n ; op ++)
+	{
+			string subcodeline = codeline.substr(*i, OPERTEXT[op].size());
 			if(OPERTEXT [op] == subcodeline ) 
 			{	
 				infix.push_back(new Oper (OPERTEXT[op]));
-				i += OPERTEXT[op].size() - 1 ;
-				flag_op = 1;
+				(*i) += OPERTEXT[op].size();
+//				flag_op = 1;
  				break;
 			}
-		}
-		if (flag_op == 1)
-		{
-			flag_op = 0;
-			continue;	
-		}
-		if (codeline[i] != ' ' && codeline[i] != '\n')
+	}
+/*if (flag_op == 1)
+	{
+		flag_op = 0;
+		continue;	
+	}
+*/
+	return infix;
+		
+}
+
+vector <Lexem *> getVar(vector <Lexem *> infix, int *i, string codeline)
+{
+
+	string notNum = "";
+		if (codeline[*i] != ' ' && codeline[*i] != '\n')
 		{	
 //		cout << "YES" << endl;
-			while ((((int)codeline[i] >= 'a' && codeline[i] <= 'z') || (codeline[i] >= 'A' && codeline[i] <= 'Z')) && i < (int)codeline.size())
+			while ((((int)codeline[*i] >= 'a' && codeline[*i] <= 'z') || (codeline[*i] >= 'A' && codeline[*i] <= 'Z')) && (*i) < (int)codeline.size())
 			{
-				notNum += codeline[i];
-				i++;
+				notNum += codeline[*i];
+				(*i)++;
 			}
 			if (notNum != "")
 			{
 				infix.push_back(new Var(notNum));
 //				cout << "!" << notNum << "!";
-				i--;
+				(*i)--;
 			}	
 			notNum = "";
-			flag_op = 0;
+		//	flag_op = 0;
 		}
+		return infix;
 
+}
+
+vector <Lexem* > parseLexem(string codeline)
+{
+	vector <Lexem* > infix;
+	int number = 0;
+	int j, flag_n = 0, flag_op = 0;
+	for (int i = 0; i < (int)codeline.size(); i++)
+	{
+		infix = getNum(&i, codeline, &flag_n, &j, infix);
+		infix = getOper(infix, &i, codeline);
+		infix = getVar(infix, &i, codeline);
+	
 	}
 	return infix;
 
@@ -421,33 +440,43 @@ void initJumps(vector < vector<Lexem* >> infixLines)
 					stackIfElse.push(infixLines[row][i]);
 				if(((Oper *)(infixLines[row][i]))->getType() == ELSE)
 				{
-					stackIfElse.top()->setRow(row + 1);
+					((Oper *)stackIfElse.top())->setRow(row + 1);
 					stackIfElse.pop();
 					stackIfElse.push(infixLines[row][i]);
 				}
 				if(((Oper *)(infixLines[row][i]))->getType() == ENDIF)
 				{
-					stackIfElse.top()->setRow(row + 1);
+					((Oper *)stackIfElse.top())->setRow(row + 1);
 					stackIfElse.pop();
 		
 				}
 	
 				if(((Oper *)(infixLines[row][i]))->getType() == WHILE)
 				{
-					(infixLines[row][i])->setRow(row);
+					((Oper *)(infixLines[row][i]))->setRow(row);
 					stackWhile.push(infixLines[row][i]);
 				}
 	
 				if(((Oper *)(infixLines[row][i]))->getType() == ENDWHILE)
 				{
-					infixLines[row][i]->setRow(stackWhile.top()->getRow());
-					stackWhile.top()->setRow(row + 1);
+					((Oper *)infixLines[row][i])->setRow(((Oper *)stackWhile.top())->getRow());
+					((Oper *)stackWhile.top())->setRow(row + 1);
 					stackWhile.pop();
 				}
 			       
 			}
 		}
 	}
+}
+
+stack <Oper *> pushVar(stack <Oper *> opstack, Var* lexemvar) 
+{
+		Oper *gt = (Oper*)opstack.top();
+		opstack.pop();
+		gt->setRow(labels[lexemvar->getName()]);
+		opstack.push(gt);
+		return opstack; 
+
 }
 
 vector<Lexem *> buildPostfix(vector<Lexem *> infix)
@@ -460,23 +489,15 @@ vector<Lexem *> buildPostfix(vector<Lexem *> infix)
 		if (infix[i] == nullptr)
 			continue;
                 if (infix[i]->getLexType() == NUMBER)
-		{
                         postfix.push_back(infix[i]);
-                }
+		
 		if (infix[i]->getLexType() == VAR)
 		{
 			Var* lexemvar = (Var*)infix[i];
 			if (labels[lexemvar->getName()] != 0)
-			{
-				Oper *gt = (Oper*)opstack.top();
-				opstack.pop();
-				gt->setRow(labels[lexemvar->getName()]);
-				opstack.push(gt);
-			//	joinGotoAndLabel(lexemvar, opstack);
-			}
-			else 
+				opstack = pushVar(opstack, lexemvar);
+			else
                         	postfix.push_back(infix[i]);
-
 		}
                 if (infix[i]->getLexType() == OPER)
 		{
@@ -687,4 +708,5 @@ int main()
 
 	return 0;
 }
+
 
