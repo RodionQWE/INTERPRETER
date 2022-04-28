@@ -479,28 +479,8 @@ stack <Oper *> pushVar(stack <Oper *> opstack, Var* lexemvar)
 
 }
 
-vector<Lexem *> buildPostfix(vector<Lexem *> infix)
+stack <Oper *> pushOper()
 {
-        int i, j;
-        stack<Oper *> opstack;
-        vector<Lexem *> postfix;
-        for (i = 0; i < (int)infix.size(); i++)
-	{
-		if (infix[i] == nullptr)
-			continue;
-                if (infix[i]->getLexType() == NUMBER)
-                        postfix.push_back(infix[i]);
-		
-		if (infix[i]->getLexType() == VAR)
-		{
-			Var* lexemvar = (Var*)infix[i];
-			if (labels[lexemvar->getName()] != 0)
-				opstack = pushVar(opstack, lexemvar);
-			else
-                        	postfix.push_back(infix[i]);
-		}
-                if (infix[i]->getLexType() == OPER)
-		{
 			Oper *oper = static_cast <Oper* >(infix[i]);
                         if (oper->getType() == LBRACKET || oper->getType() == LQBRACKET)
 			{
@@ -530,6 +510,34 @@ vector<Lexem *> buildPostfix(vector<Lexem *> infix)
 	                                }
                         }
                 }
+
+}
+
+vector<Lexem *> buildPostfix(vector<Lexem *> infix)
+{
+        int i, j;
+        stack<Oper *> opstack;
+        vector<Lexem *> postfix;
+        for (i = 0; i < (int)infix.size(); i++)
+	{
+		if (infix[i] == nullptr)
+			continue;
+                if (infix[i]->getLexType() == NUMBER)
+                        postfix.push_back(infix[i]);
+		
+		if (infix[i]->getLexType() == VAR)
+		{
+			Var* lexemvar = (Var*)infix[i];
+			if (labels[lexemvar->getName()] != 0)
+				opstack = pushVar(opstack, lexemvar);
+			else
+                        	postfix.push_back(infix[i]);
+		}
+
+                if (infix[i]->getLexType() == OPER)
+		{
+			opstack = pushOper(opstack);
+		}
         }
         for (i = opstack.size(); i > 0; i--)
 	{
